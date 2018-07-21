@@ -32,12 +32,8 @@ from glob import glob
 from scipy import misc
 
 import numpy as np
-# # for old tensorflow
-# from tensorflow.contrib.keras.python.keras.preprocessing.image import Iterator
-# from tensorflow.contrib.keras.python.keras import backend as K
-# for tf 1.8
-from tensorflow.python.keras.preprocessing.image import Iterator
-from tensorflow.python.keras import backend as K
+from tensorflow.contrib.keras.python.keras.preprocessing.image import Iterator
+from tensorflow.contrib.keras.python.keras import backend as K
 
 def preprocess_input(x):
     x = x/255.
@@ -97,7 +93,6 @@ class BatchIteratorSimple(Iterator):
         self.batch_size = batch_size
         self.training = training
         self.image_shape = tuple(image_shape)
-        self.m_current_batch_size = -1
 
         im_files = sorted(glob(os.path.join(data_folder, 'images', '*.jpeg')))
         mask_files = sorted(glob(os.path.join(data_folder, 'masks', '*.png')))
@@ -113,18 +108,26 @@ class BatchIteratorSimple(Iterator):
 
         super(BatchIteratorSimple, self).__init__(self.n, batch_size, shuffle, seed)
 
-    def _get_batches_of_transformed_samples( self, index_array ) :
 
-        if self.m_current_batch_size == -1 :
-            d1, d2, current_batch_size = next( self.index_generator )
-            self.m_current_batch_size = current_batch_size
-
-        batch_x = np.zeros((self.m_current_batch_size,) + self.image_shape, dtype=K.floatx())
+    def next(self):
+        """For python 2.x.
+        Returns:
+            The next batch.
+        """
+        # Keeps under lock only the mechanism which advances
+        # the indexing of each batch.
+        with self.lock:
+          index_array, current_index, current_batch_size = next(
+              self.index_generator)
+        # The transformation of images is not under thread lock
+        # so it can be done in parallel
+        
+        batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
 
 
         if self.training:
             batch_y = np.zeros(
-                    (self.m_current_batch_size,) + self.image_shape[:2] + (self.num_classes,),
+                    (current_batch_size,) + self.image_shape[:2] + (self.num_classes,),
                     dtype=K.floatx())
 
         for e, i in enumerate(index_array):
@@ -158,18 +161,3 @@ class BatchIteratorSimple(Iterator):
 
         else:
           return batch_x, batch_y
-
-    def next(self):
-        """For python 2.x.
-        Returns:
-            The next batch.
-        """
-        # Keeps under lock only the mechanism which advances
-        # the indexing of each batch.
-        with self.lock:
-            index_array, current_index, current_batch_size = next( self.index_generator )
-            self.m_current_batch_size = current_batch_size
-        # The transformation of images is not under thread lock
-        # so it can be done in parallel
-        
-        return self._get_batches_of_transformed_samples( index_array )

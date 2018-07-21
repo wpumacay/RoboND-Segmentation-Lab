@@ -29,10 +29,7 @@
 
 import os
 import json
-# # for old tensorflow
-# from tensorflow.contrib.keras.python import keras 
-# for tf 1.8
-from tensorflow import keras
+from tensorflow.contrib.keras.python import keras 
 from scipy import misc
 from . import data_iterator
 import numpy as np
