@@ -1,0 +1,13 @@
+*.pyc
+*.pyo
+*.swp
+*.swo
+
+.ipynb_checkpoints
+
+data/train
+data/validation
+data/runs
+data/weights
+
+
